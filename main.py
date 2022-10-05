@@ -24,14 +24,20 @@ parser.add_argument('hostname', metavar='hostname',
                     help='hostname of mqtt server', nargs='?', default="0.0.0.0")
 parser.add_argument('port', metavar='port',
                     help='port of mqtt server', nargs='?', default="1883")
-parser.add_argument('topic', metavar='topic', help='topic used to publish data',
+parser.add_argument('topic1', metavar='topic1', help='topic used to publish power consumption (in wh)',
                     nargs='?', default="sensors/linky/watt")
+parser.add_argument('topic2', metavar='topic2',
+                    help='topic used to publish state (0 if HC, 1 if HP)',
+                    nargs='?', default="sensors/linky/state")
 args = parser.parse_args()
 
 usbport = args.usbport
 run = True
 previousValue = -1
+previousState = -1
 previousTimestamp = -1
+previousValueHCHC = -1
+previousValueHCHP = -1
 
 
 def signal_handler(signal, frame):
@@ -78,14 +84,37 @@ except Exception as e:
 while run:
     try:
         lignes = linky.read(ser)
-        newValue = int(lignes["HCHC"])+int(lignes["HCHP"])
+
+        hchc = int(lignes["HCHC"])
+        hchp = int(lignes["HCHP"])
+
+        # we check if we are switching states 0 = hchc / 1 = hchp
+        if hchc > previousValueHCHC:
+            logger.debug("hchc is increasing: %s", hchc)
+            state = 0
+            previousValueHCHC = hchc
+
+        if hchp > previousValueHCHP:
+            logger.debug("hchp is increasing: %s", hchp)
+            state = 1
+            previousValueHCHP = hchp
+
+        if previousState != state:
+            client.publish(args.topic2, state, retain=True)
+
+        previousState = state
+
+        # we calculate the current power consumption
+        newValue = hchc + hchp
         newTimestamp = time.time()
         if newValue != previousValue:
             logger.debug("new value: %s", newValue)
             if previousValue != -1:
                 currentConsumption = int(
-                    round((newValue - previousValue)/(newTimestamp - previousTimestamp)*3600))
-                client.publish(args.topic, currentConsumption)
+                    round((newValue - previousValue) /
+                          (newTimestamp - previousTimestamp)*3600)
+                )
+                client.publish(args.topic1, currentConsumption)
             previousValue = newValue
             previousTimestamp = newTimestamp
     except Exception as e:
