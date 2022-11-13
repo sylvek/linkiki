@@ -29,6 +29,9 @@ parser.add_argument('topic1', metavar='topic1', help='topic used to publish powe
 parser.add_argument('topic2', metavar='topic2',
                     help='topic used to publish state (0 if HC, 1 if HP)',
                     nargs='?', default="sensors/linky/state")
+parser.add_argument('topic3', metavar='topic3',
+                    help='topic used to publish the current indice (incremental value in watt)',
+                    nargs='?', default="sensors/linky/indice")
 args = parser.parse_args()
 
 usbport = args.usbport
@@ -104,7 +107,7 @@ while run:
 
         previousState = state
 
-        # we calculate the current power consumption
+        # we calculate the current power consumption and the current indice
         newValue = hchc + hchp
         newTimestamp = time.time()
         if newValue != previousValue:
@@ -115,6 +118,7 @@ while run:
                           (newTimestamp - previousTimestamp)*3600)
                 )
                 client.publish(args.topic1, currentConsumption)
+                client.publish(args.topic3, newValue)
             previousValue = newValue
             previousTimestamp = newTimestamp
     except Exception as e:
