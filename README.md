@@ -8,6 +8,7 @@ Basically, it broadcasts on two topics :
 |topic|retain|description|
 |---|---|---|
 |sensors/linky/watt|no|current Watt consumption (integer)
+|sensors/linky/indice|no|current merged indice (HCHP+HCHC)
 |sensors/linky/state|yes|1 for HCHP / 0 for HCHC - sent only during switching
 
 
